@@ -1,12 +1,14 @@
 #include "MainWindow.h"
+#include "DebugWindow.h"
 #include "FortranTokeniser.h"
 #include "Utils.h"
 
-MainWindow::MainWindow() 
+MainWindow::MainWindow(DebugWindow* debug)
 	: DocumentWindow(ProjectInfo::projectName,
 		juce::Desktop::getInstance().getDefaultLookAndFeel()
 		.findColour(juce::ResizableWindow::backgroundColourId),
-		juce::DocumentWindow::TitleBarButtons::allButtons) {
+		juce::DocumentWindow::TitleBarButtons::allButtons),
+	debug(debug) {
 	this->setUsingNativeTitleBar(true);
 	this->setResizable(true, false);
 
@@ -22,10 +24,44 @@ MainWindow::MainWindow()
 	/** Menu Bar */
 	this->menuModel = std::make_unique<MenuBarModel>(this);
 	this->setMenuBar(this->menuModel.get());
+
+	/** Debug */
+	class Listener final : public juce::CodeDocument::Listener {
+	public:
+		explicit Listener(DebugWindow* debug, juce::CodeDocument* doc)
+			: juce::CodeDocument::Listener::Listener(), debug(debug), doc(doc) {};
+		~Listener() override = default;
+
+		void codeDocumentTextInserted(
+			const juce::String& /*newText*/, int /*insertIndex*/) override {
+			juce::MessageManager::callAsync(
+				[debug = this->debug, doc = this->doc] {
+					juce::CodeDocument::Iterator it{*doc};
+					debug->actionCodeChanged(it, doc->getAllContent());
+				});
+		};
+
+		void codeDocumentTextDeleted(
+			int /*startIndex*/, int /*endIndex*/) override {
+			juce::MessageManager::callAsync(
+				[debug = this->debug, doc = this->doc] {
+					juce::CodeDocument::Iterator it{*doc};
+					debug->actionCodeChanged(it, doc->getAllContent());
+				});
+		};
+
+	private:
+		DebugWindow* debug = nullptr;
+		juce::CodeDocument* doc = nullptr;
+	};
+	this->codeListener
+		= std::unique_ptr<juce::CodeDocument::Listener>(
+			new Listener{ this->debug, this->document.get() });
+	this->document->addListener(this->codeListener.get());
 }
 
-MainWindow::MainWindow(const juce::String& filePath)
-	: MainWindow() {
+MainWindow::MainWindow(const juce::String& filePath, DebugWindow* debug)
+	: MainWindow(debug) {
 	juce::File file = juce::File::getCurrentWorkingDirectory().getChildFile(filePath);
 	utils::DefaultDir::set(file.getParentDirectory());
 
@@ -40,6 +76,7 @@ MainWindow::~MainWindow() {
 	this->setContentNonOwned(nullptr, false);
 	this->editor = nullptr;
 	this->setMenuBar(nullptr);
+	this->document->removeListener(this->codeListener.get());
 }
 
 void MainWindow::actionNew() {

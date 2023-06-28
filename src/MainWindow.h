@@ -2,10 +2,12 @@
 #include <JuceHeader.h>
 #include "MenuBarModel.h"
 
+class DebugWindow;
+
 class MainWindow final : public juce::DocumentWindow {
 public:
-	MainWindow();
-	MainWindow(const juce::String& filePath);
+	explicit MainWindow(DebugWindow* debug);
+	MainWindow(const juce::String& filePath, DebugWindow* debug);
 	~MainWindow();
 
 	void actionNew();
@@ -18,6 +20,8 @@ private:
 	std::unique_ptr<juce::CodeTokeniser> tokeniser = nullptr;
 
 	std::unique_ptr<MenuBarModel> menuModel = nullptr;
+	std::unique_ptr<juce::CodeDocument::Listener> codeListener = nullptr;
+	DebugWindow* debug = nullptr;
 
 	const juce::StringArray extensions {
 		".f90", ".f95", ".f03", ".f08", ".f15"};
