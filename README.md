@@ -1,6 +1,9 @@
 # Fortran-Viewer
 合工大编译原理课设-Fortran词法分析
 
+## 文档
+中文文档：[doc/zh_CN.md](doc/zh_CN.md)  
+
 ## Fortran 关键字
 ### 2 char
 do
